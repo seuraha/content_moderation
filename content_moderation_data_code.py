@@ -4,10 +4,13 @@ import pandas as pd
 import numpy as np
 import json
 
-def get_ratings_data():
-    data_ratings = pd.read_csv(os.path.join(C.data_path, "ratings-00000.tsv"), sep='\t')
+def get_ratings_data(
+        sample_frac = 0.05
+        ):
+
+    data_ratings = pd.read_csv(os.path.join(C.data_path, "ratings-00000.tsv"), sep='\t', skiprows=lambda x: x > 0 and np.random.random() > sample_frac)
     try:
-        data_ratings1 = pd.read_csv(os.path.join(C.data_path, "ratings-00001.tsv"), sep='\t')
+        data_ratings1 = pd.read_csv(os.path.join(C.data_path, "ratings-00001.tsv"), sep='\t', skiprows=lambda x: x > 0 and np.random.random() > sample_frac)
         data_ratings = pd.concat([data_ratings, data_ratings1]).reset_index(drop=True)
 
         del data_ratings1
@@ -30,19 +33,17 @@ def sample_user_data(
     data_user_enrollment = data_user_enrollment[c].drop_duplicates()
 
     user_data_features = data_user_enrollment.sample(n=sample_n, random_state=random_seed)
+    pid, idx = user_data_features["participantId"].to_list(), user_data_features.index.to_list()
 
-    if skiprows is None:
-
-        user_data_features = user_data_features.reset_index()
-        user_data_features.iloc[:,1:].to_csv(C.users_path, sep="\t", index=False)
-
-        return user_data_features["participantId"].to_list(), user_data_features['index'].to_list()
+    try:
+        u = pd.read_csv(C.users_path, sep="\t")
+        user_data_features = pd.concat([u, user_data_features])
+        user_data_features.to_csv(C.users_path, sep="\t", index=False)
     
-    else:
-        user_data_features = user_data_features.reset_index(drop=True)
-        user_data_features.to_csv(C.users_path, sep="\t", mode="a", index=False)
+    except:
+        user_data_features.to_csv(C.users_path, sep="\t", index=False)
 
-        return user_data_features["participantId"].to_list()
+    return pid, idx
 
 
 def sample_note_data(sample_n, data_path=C.data_path, random_seed = 0):
@@ -68,9 +69,9 @@ def note_status_data_to_tsv(note_features):
 
 def generate_ratings_data(
         simulated_ratings, 
-        user_id_map,
-        note_id_map,
-        random_seed=0):
+        SimModel,
+        random_seed=0,
+        verbose=C.verbose):
     from numpy.random import binomial, exponential
     np.random.seed(random_seed)
     """
@@ -83,9 +84,12 @@ def generate_ratings_data(
     0, elsewhere.
     """
     avg_wait_time = 2*60*60*1000 # a note gets a rating once every 2 hours - this is not essential but to add "created at millisec" column to the rating data.
+    if verbose:
+        print("Loading ratings and id map data...")
     ratings_data = get_ratings_data()
-    note_id_map_df = pd.DataFrame(note_id_map)
-    user_id_map_df = pd.DataFrame(user_id_map)
+    
+    note_id_map_df = pd.DataFrame(SimModel.note_id_map)
+    user_id_map_df = pd.DataFrame(SimModel.user_id_map)
 
     _ = simulated_ratings\
         .merge(note_id_map_df, on="note_sim_ID", how="left")\
@@ -104,6 +108,8 @@ def generate_ratings_data(
     sim_ratings_df["createdAtMillis"] = _["createdAtMillis"]
     sim_ratings_df["ratedOnTweetId"] = -1
 
+    if verbose:
+        print("Sampling explanation tags...")
     helpful_tags = [c for c in ratings_data.columns if c.startswith("helpful") and c not in ["helpful", "helpfulnessLevel"]]
     nothelpful_tags = [c for c in ratings_data.columns if c.startswith("notHelpful") and c not in ["notHelpful"]]
 
@@ -136,29 +142,6 @@ def run_main(pseudoraters = True,
              enabledScorers = None, 
              strictColumns = True, 
              runParallel = False):
-    if C.verbose:
-        print("""
-                ██████╗░██╗░░░██╗███╗░░██╗███╗░░██╗██╗███╗░░██╗░██████╗░
-                ██╔══██╗██║░░░██║████╗░██║████╗░██║██║████╗░██║██╔════╝░
-                ██████╔╝██║░░░██║██╔██╗██║██╔██╗██║██║██╔██╗██║██║░░██╗░
-                ██╔══██╗██║░░░██║██║╚████║██║╚████║██║██║╚████║██║░░╚██╗
-                ██║░░██║╚██████╔╝██║░╚███║██║░╚███║██║██║░╚███║╚██████╔╝
-                ╚═╝░░╚═╝░╚═════╝░╚═╝░░╚══╝╚═╝░░╚══╝╚═╝╚═╝░░╚══╝░╚═════╝░
-
-                ███╗░░░███╗░█████╗░████████╗██████╗░██╗██╗░░██╗
-                ████╗░████║██╔══██╗╚══██╔══╝██╔══██╗██║╚██╗██╔╝
-                ██╔████╔██║███████║░░░██║░░░██████╔╝██║░╚███╔╝░
-                ██║╚██╔╝██║██╔══██║░░░██║░░░██╔══██╗██║░██╔██╗░
-                ██║░╚═╝░██║██║░░██║░░░██║░░░██║░░██║██║██╔╝╚██╗
-                ╚═╝░░░░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝╚═╝░░╚═╝
-
-                ███████╗░█████╗░░█████╗░████████╗░█████╗░██████╗░██╗███████╗░█████╗░████████╗██╗░█████╗░███╗░░██╗
-                ██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║╚════██║██╔══██╗╚══██╔══╝██║██╔══██╗████╗░██║
-                █████╗░░███████║██║░░╚═╝░░░██║░░░██║░░██║██████╔╝██║░░███╔═╝███████║░░░██║░░░██║██║░░██║██╔██╗██║
-                ██╔══╝░░██╔══██║██║░░██╗░░░██║░░░██║░░██║██╔══██╗██║██╔══╝░░██╔══██║░░░██║░░░██║██║░░██║██║╚████║
-                ██║░░░░░██║░░██║╚█████╔╝░░░██║░░░╚█████╔╝██║░░██║██║███████╗██║░░██║░░░██║░░░██║╚█████╔╝██║░╚███║
-                ╚═╝░░░░░╚═╝░░╚═╝░╚════╝░░░░╚═╝░░░░╚════╝░╚═╝░░╚═╝╚═╝╚══════╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░╚════╝░╚═╝░░╚══╝
-        """)
 
     scoring_dir = __import__(C.sourcecode_import_path+".scoring", fromlist=["process_data", "run_scoring"])
 

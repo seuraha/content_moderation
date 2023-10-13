@@ -45,8 +45,6 @@ class RatingSimulation:
 
     
     def get_user_set(self):
-        strategic_users_n = len(self.strategic_users)
-
         if self.is_user_init:
             from numpy.random import normal
             configs = self.configs
@@ -56,10 +54,10 @@ class RatingSimulation:
             n_R = int(user_n * configs["user_pi_R"])       # total number of users in group R
             n_L = user_n - n_R                             # total number of users in group L
 
-            r_dim_value = normal(configs["user_opinion_R"][1], configs["user_opinion_R_std"], n_R).reshape((-1,1))
+            r_dim_value = normal(configs["user_opinion_R"], configs["user_opinion_R_std"], n_R).reshape((-1,1))
             r_dim_accuracy = np.sqrt(1 - r_dim_value**2)
 
-            l_dim_value = normal(configs["user_opinion_L"][1], configs["user_opinion_L_std"], n_L).reshape((-1,1))
+            l_dim_value = normal(configs["user_opinion_L"], configs["user_opinion_L_std"], n_L).reshape((-1,1))
             l_dim_accuracy = np.sqrt(1 - l_dim_value**2)
 
             group_opinion_R = np.hstack((r_dim_accuracy, r_dim_value))
@@ -88,16 +86,26 @@ class RatingSimulation:
 
             user_id_map = json.load(open(C.user_id_map_path, "r"))
 
-        if strategic_users_n > 0:
+        if len(self.strategic_users) > 0:
+            need_data_id_u = [u for u in self.strategic_users if u.sim_id not in user_id_map['user_sim_ID']]
+            need_data_id_n = len(need_data_id_u)
+
+            if need_data_id_n > 0:
+                skiprows = user_id_map['index']
+                sampled_participantId, skiprows = sample_user_data(need_data_id_n, skiprows=skiprows)
+                for i, u in enumerate(need_data_id_u):
+                    u.data_id = sampled_participantId[i]
+                    u.data_index = skiprows[i]
+                    user_id_map['user_sim_ID'].append(u.sim_id)
+                    user_id_map['participantId'].append(u.data_id)
+                    user_id_map['index'].append(u.data_index)
+                json.dump(user_id_map, open(C.user_id_map_path, "w"))
+
             I_strategic_R = np.array([[u.sim_id, u.opinion[0], u.opinion[1]] for u in self.strategic_users if u.group == "R"])
             I_strategic_L = np.array([[u.sim_id, u.opinion[0], u.opinion[1]] for u in self.strategic_users if u.group == "L"])
 
             I_R = np.vstack((I_strategic_R, I_R)) if len(I_strategic_R) > 0 else I_R
             I_L = np.vstack((I_strategic_L, I_L)) if len(I_strategic_L) > 0 else I_L
-
-            user_id_map['user_sim_ID'].extend([u.sim_id for u in self.strategic_users])
-            user_id_map['participantId'].extend([u.data_id for u in self.strategic_users])
-            user_id_map['index'].extend([-1] * strategic_users_n)
         
         I = np.vstack((I_R, I_L)) # set of all users
             
@@ -148,6 +156,6 @@ class RatingSimulation:
              "user_sim_ID": assigned_raters[:,0], 
              "user_dim_accuracy": assigned_raters[:,1],
              "user_dim_value": assigned_raters[:,2],
+             'user_group': np.where(assigned_raters[:,2] > 0, "R", "L"),
              "dot_product": dot_product,
              "evaluation": np.vectorize(evaluation)(dot_product)})
-    
