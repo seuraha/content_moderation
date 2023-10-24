@@ -6,6 +6,8 @@ sourcecode_path = "communitynotes-main/sourcecode"
 sourcecode_import_path = "communitynotes-main.sourcecode"
 
 sim_data_path = os.path.join(sourcecode_path, "sim_data")
+exp_data_path = os.path.join(sim_data_path, "exp_data")
+
 # Input datasets paths
 users_path = os.path.join(sim_data_path, "userEnrollment.tsv")
 notes_path = os.path.join(sim_data_path, "notes.tsv")
@@ -25,6 +27,21 @@ user_id_map_path = os.path.join(sim_data_path, "user_id_map.json")
 
 J_path = os.path.join(sim_data_path, "sim_note_J.npy")
 note_id_map_path = os.path.join(sim_data_path, "note_id_map.json")
+
+# Simulated ID and model datasets path Grid Experiment
+grid_exp_data_path = os.path.join(sim_data_path, "grid_exp")
+
+grid_last_configs_path = os.path.join(grid_exp_data_path, "last_configs.json")
+
+grid_ratings_path = os.path.join(grid_exp_data_path, "grid_ratings.tsv")
+grid_users_ID_o_path = os.path.join(grid_exp_data_path, "grid_users_ID_o.tsv")
+grid_notes_ID_o_path = os.path.join(grid_exp_data_path, "grid_notes_ID_o.tsv")
+
+grid_baseline_users_path = os.path.join(grid_exp_data_path, "grid_baseline_users.npy")
+grid_J_path = os.path.join(grid_exp_data_path, "grid_note_J.npy")
+
+grid_user_id_map_path = os.path.join(grid_exp_data_path, "grid_user_id_map.json")
+grid_note_id_map_path = os.path.join(grid_exp_data_path, "grid_id_map.json")
 
 # Matrix factorization results path
 scored_notes_path = os.path.join(sim_data_path, "scored_notes.tsv")

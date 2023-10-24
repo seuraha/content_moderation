@@ -1,11 +1,10 @@
 import numpy as np
 import json
 import content_moderation_constants as C
-from content_moderation_data_code import sample_user_data
 
 def evaluation(dot_product, thresholds=(0.5, 0)):
     threshold_h, threshold_s = thresholds
-    return "HELPFUL" if dot_product >= threshold_h else "SOMEWHAT_HELPFUL" if dot_product >= threshold_s else "NOT_HELPFUL"
+    return 1 if dot_product >= threshold_h else 0.5 if dot_product >= threshold_s else 0
 
 class StrategicUser:
     def __init__(
