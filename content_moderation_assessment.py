@@ -45,8 +45,7 @@ def factorization_results(
 
     # User
     sim_users = pd.DataFrame(SimModel.user_set_I, columns=["user_sim_ID", "dim_accuracy", "dim_value"])\
-        .merge(pd.DataFrame(SimModel.user_id_map), on="user_sim_ID", how="left")\
-            .drop("index", axis=1)
+        .merge(pd.DataFrame(SimModel.user_id_map), on="user_sim_ID", how="left")
     user_input_output = sim_users.merge(rater_params, left_on="participantId", right_on="raterParticipantId")
     user_input_output["Group"] = np.where(user_input_output["dim_value"] > 0, "R", "L")
     user_input_output.rename({"coreRaterFactor1": "est_dim_value", "coreRaterIntercept": "est_dim_accuracy"}, axis=1, inplace=True)
@@ -252,8 +251,8 @@ def get_exp_diff(user_output: dict, note_output: dict, s_list = None, threshold_
 
         for s in s_list:
             for t in threshold_list:
-                target_delta_df.loc[f"b_{target_note_id}", f"output_s={s}_t={t}"] = counterfactual_output[f'output_prob_s={s}_t={t}'] - counterfactual_output[f'output_prob_s={s}_t={t}']
-                target_delta_df.loc[exp_name, f"output_s={s}_t={t}"] = smoothed_prob(experiment_output['est_dim_accuracy'], s, t) - counterfactual_output[f'output_prob_s={s}_t={t}']
+                target_delta_df.loc[f"b_{target_note_id}", f"output_s={s}_t={t}"] = smoothed_prob(counterfactual_output['est_dim_accuracy'], s, t) - smoothed_prob(counterfactual_output['est_dim_accuracy'], s, t) 
+                target_delta_df.loc[exp_name, f"output_s={s}_t={t}"] = smoothed_prob(experiment_output['est_dim_accuracy'], s, t) - smoothed_prob(counterfactual_output['est_dim_accuracy'], s, t) 
 
         for c in list(experiment_output.keys())[1:]:
             target_delta_df.loc[f"b_{target_note_id}", c] = counterfactual_output[c] - counterfactual_output[c]

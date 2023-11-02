@@ -9,15 +9,15 @@ sim_data_path = os.path.join(sourcecode_path, "sim_data")
 exp_data_path = os.path.join(sim_data_path, "exp_data")
 
 # Input datasets paths
-users_path = os.path.join(sim_data_path, "userEnrollment.tsv")
-notes_path = os.path.join(sim_data_path, "notes.tsv")
-ratings_path = os.path.join(sim_data_path, "ratings.tsv")
-status_path = os.path.join(sim_data_path, "note_status_history.tsv")
+users_path = os.path.join(sim_data_path, "userEnrollment.pkl")
+notes_path = os.path.join(sim_data_path, "notes.pkl")
+ratings_path = os.path.join(sim_data_path, "ratings.pkl")
+status_path = os.path.join(sim_data_path, "note_status_history.pkl")
 
 # Simulated ID and model datasets path
-sim_ratings_path = os.path.join(sim_data_path, "sim_ratings.tsv")
-sim_users_ID_o_path = os.path.join(sim_data_path, "sim_users_ID_o.tsv")
-sim_notes_ID_o_path = os.path.join(sim_data_path, "sim_notes_ID_o.tsv")
+# sim_ratings_path = os.path.join(sim_data_path, "sim_ratings.pkl")
+# sim_users_ID_o_path = os.path.join(sim_data_path, "sim_users_ID_o.pkl")
+# sim_notes_ID_o_path = os.path.join(sim_data_path, "sim_notes_ID_o.pkl")
 
 last_configs_path = os.path.join(sim_data_path, "last_configs.json")
 
@@ -33,9 +33,9 @@ grid_exp_data_path = os.path.join(sim_data_path, "grid_exp")
 
 grid_last_configs_path = os.path.join(grid_exp_data_path, "last_configs.json")
 
-grid_ratings_path = os.path.join(grid_exp_data_path, "grid_ratings.tsv")
-grid_users_ID_o_path = os.path.join(grid_exp_data_path, "grid_users_ID_o.tsv")
-grid_notes_ID_o_path = os.path.join(grid_exp_data_path, "grid_notes_ID_o.tsv")
+# grid_ratings_path = os.path.join(grid_exp_data_path, "grid_ratings.pkl")
+# grid_users_ID_o_path = os.path.join(grid_exp_data_path, "grid_users_ID_o.pkl")
+# grid_notes_ID_o_path = os.path.join(grid_exp_data_path, "grid_notes_ID_o.pkl")
 
 grid_baseline_users_path = os.path.join(grid_exp_data_path, "grid_baseline_users.npy")
 grid_J_path = os.path.join(grid_exp_data_path, "grid_note_J.npy")

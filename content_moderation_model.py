@@ -19,8 +19,8 @@ class StrategicUser:
         self.opinion = np.array([np.sqrt(1-opinion_value**2), opinion_value])
 
     def get_data_id(self):
-        user_id_map = json.load(open(C.user_id_map_path, "r"))
         try:
+            user_id_map = json.load(open(C.user_id_map_path, "r"))
             idx = user_id_map['user_sim_ID'].index(self.sim_id)
             return user_id_map['participantId'][idx], user_id_map['index'][idx]
         except:

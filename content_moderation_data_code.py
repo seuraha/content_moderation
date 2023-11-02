@@ -6,37 +6,28 @@ import json
 from content_moderation_assessment import factorization_results
 
 def get_ratings_data(
-        sample_frac = 0.005
+        sample_frac = 0.01
         ):
-    cols = [
-        'noteId', 'raterParticipantId', 'createdAtMillis', 
-        'helpfulnessLevel', 
-        'helpfulOther', 'helpfulInformative', 'helpfulClear', 'helpfulEmpathetic', 'helpfulGoodSources', 
-        'helpfulUniqueContext', 'helpfulAddressesClaim', 'helpfulImportantContext', 'helpfulUnbiasedLanguage', 
-        'notHelpfulOther', 'notHelpfulIncorrect', 'notHelpfulSourcesMissingOrUnreliable', 'notHelpfulOpinionSpeculationOrBias', 
-        'notHelpfulMissingKeyPoints', 'notHelpfulOutdated', 'notHelpfulHardToUnderstand', 'notHelpfulArgumentativeOrBiased', 
-        'notHelpfulOffTopic', 'notHelpfulSpamHarassmentOrAbuse', 'notHelpfulIrrelevantSources', 'notHelpfulOpinionSpeculation', 'notHelpfulNoteNotNeeded']
-    data_ratings = pd.read_csv(
-        os.path.join(C.data_path, "ratings-00000.tsv"), 
-        sep='\t', 
-        usecols=cols,
-        skiprows=lambda x: x > 0 and np.random.random() > sample_frac)
+    deletedNoteTombstonesLaunchTime = 1652918400000  # May 19, 2022 UTC
+    notMisleadingUILaunchTime = 1664755200000  # October 3, 2022 UTC
+    data_ratings = pd.read_parquet(
+        os.path.join(C.data_path, "ratings-00000.parquet"), 
+        engine="pyarrow", 
+        filters=[
+            [('createdAtMillis', '>', deletedNoteTombstonesLaunchTime), ('createdAtMillis', '>', notMisleadingUILaunchTime)]
+        ]).sample(frac=sample_frac, random_state=0)
     try:
-        data_ratings1 = pd.read_csv(
-            os.path.join(C.data_path, "ratings-00001.tsv"), 
-            sep='\t', 
-            usecols=cols,
-            skiprows=lambda x: x > 0 and np.random.random() > sample_frac)
+        data_ratings1 = pd.read_parquet(
+            os.path.join(C.data_path, "ratings-00001.parquet"), 
+            engine="pyarrow", 
+            filters=[
+                [('createdAtMillis', '>', deletedNoteTombstonesLaunchTime), ('createdAtMillis', '>', notMisleadingUILaunchTime)]
+            ]).sample(frac=sample_frac, random_state=0)
         data_ratings = pd.concat([data_ratings, data_ratings1]).reset_index(drop=True)
 
         del data_ratings1
     except:
         pass
-
-    deletedNoteTombstonesLaunchTime = 1652918400000  # May 19, 2022 UTC
-    notMisleadingUILaunchTime = 1664755200000  # October 3, 2022 UTC
-    c = (data_ratings["createdAtMillis"] > deletedNoteTombstonesLaunchTime) & (data_ratings["createdAtMillis"] > notMisleadingUILaunchTime)
-    data_ratings = data_ratings[c]
 
     data_ratings['helpfulnessLevel'] = np.where(
         data_ratings['helpfulnessLevel'] == "HELPFUL",
@@ -49,37 +40,43 @@ def get_ratings_data(
 
 def sample_user_data(
         sample_n,
-        skiprows=None,
+        drop_ids=None,
         data_path=C.data_path, 
         random_seed=0):
+    
+    filters = [('enrollmentState', '==', "newUser"), ('modelingPopulation', '==', "CORE"), ('modelingGroup', '==', 0)]
 
-    data_user_enrollment = pd.read_csv(os.path.join(data_path, "userEnrollment-00000.tsv"), sep='\t', skiprows=skiprows)
-    c = (data_user_enrollment["enrollmentState"]=="newUser") & (data_user_enrollment["modelingPopulation"]=="CORE") & (data_user_enrollment["modelingGroup"]==0)
-    data_user_enrollment = data_user_enrollment[c].drop_duplicates()
+    if drop_ids:
+        filters.append(('participantId', 'not in', drop_ids))
+
+    data_user_enrollment = pd.read_parquet(
+        os.path.join(data_path, "userEnrollment-00000.parquet"),
+        filters=[filters]).drop_duplicates()
 
     user_data_features = data_user_enrollment.sample(n=sample_n, random_state=random_seed)
-    pid, idx = user_data_features["participantId"].to_list(), user_data_features.index.to_list()
+    pid = user_data_features["participantId"].to_list()
 
     try:
-        u = pd.read_csv(C.users_path, sep="\t")
+        u = pd.read_pickle(C.users_path)
         user_data_features = pd.concat([u, user_data_features])
-        user_data_features.to_csv(C.users_path, sep="\t", index=False)
+        user_data_features.to_pickle(C.users_path)
     
     except:
-        user_data_features.to_csv(C.users_path, sep="\t", index=False)
+        user_data_features.to_pickle(C.users_path)
 
-    return pid, idx
+    return pid
 
 
 def sample_note_data(sample_n, data_path=C.data_path, random_seed = 0):
-    data_notes = pd.read_csv(os.path.join(data_path, "notes-00000.tsv"), sep='\t').drop_duplicates()
+    data_notes = pd.read_parquet(
+        os.path.join(data_path, "notes-00000.parquet")).drop_duplicates()
     note_features = data_notes.sample(n=sample_n, random_state=random_seed).reset_index(drop=True)
 
-    note_features.to_csv(C.notes_path, sep="\t", index=False)
-    note_status_data_to_tsv(note_features)
+    note_features.to_pickle(C.notes_path)
+    note_status_data_to_pickle(note_features)
     return note_features["noteId"].to_list(), note_features["createdAtMillis"].to_list()
 
-def note_status_data_to_tsv(note_features):
+def note_status_data_to_pickle(note_features):
     import time
     note_status = pd.DataFrame(columns=C.note_status_history_columns)
     note_status["noteId"] = note_features["noteId"]
@@ -90,7 +87,7 @@ def note_status_data_to_tsv(note_features):
     note_status["currentStatus"] = "NEEDS_MORE_RATINGS"
     note_status["timestampMillisOfLatestNonNMRStatus"] = -1
     note_status["timestampMillisOfRetroLock"] = -1
-    note_status.to_csv(C.status_path, sep="\t", index=False)
+    note_status.to_pickle(C.status_path)
 
 def generate_ratings_data(
         simulated_ratings, 
@@ -125,15 +122,8 @@ def generate_ratings_data(
     sim_ratings_df = pd.DataFrame(columns=ratings_data.columns)
     sim_ratings_df["noteId"] = _["noteId"]
     sim_ratings_df["raterParticipantId"] = _["participantId"]
-    # sim_ratings_df["version"] = 2
-    # sim_ratings_df["agree"] = 0       # deprecated, set to 0 by default in version 2
-    # sim_ratings_df["disagree"] = 0    # deprecated, set to 0 by default in version 2
-    # sim_ratings_df["helpful"] = 0     # deprecated, set to 0 by default in version 2
-    # sim_ratings_df["notHelpful"] = 0  # deprecated, set to 0 by default in version 2
-    # sim_ratings_df["helpfulnessLevel"] = _["rating"]
     sim_ratings_df["helpfulNum"] = _["rating"]
     sim_ratings_df["createdAtMillis"] = _["createdAtMillis"]
-    # sim_ratings_df["ratedOnTweetId"] = -1
 
     if verbose:
         print("Sampling explanation tags...")
@@ -166,19 +156,20 @@ def generate_ratings_data(
     if return_data:
         return sim_ratings_df
     
-    sim_ratings_df.to_csv(C.ratings_path, sep="\t", index=False)
+    sim_ratings_df.to_pickle(C.ratings_path)
 
 
 def run_main(
         ratings_path = None,
+        return_data = False,
+        simulation_model = None,
+        runParallel = True,
         shouldFilterNotMisleadingNotes = False,
         pseudoraters = False, 
         enabledScorers = None, 
         strictColumns = True, 
-        runParallel = True,
-        return_data = False,
-        logging = True,
-        simulation_model = None):
+        logging = False
+        ):
 
     scoring_dir = __import__(C.sourcecode_import_path+".scoring", fromlist=["process_pickle", "run_scoring"])
 

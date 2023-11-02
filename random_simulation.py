@@ -72,12 +72,12 @@ class RatingSimulation:
                 (_[n_R:], group_opinion_L)
                 )   # set of users in group L: matrix of dimension `n_L` X 3
             
-            sampled_participantId, skiprows = sample_user_data(user_n)
+            sampled_participantId = sample_user_data(user_n)
             
             np.save(C.baseline_I_R_path, I_R)
             np.save(C.baseline_I_L_path, I_L)
             
-            user_id_map = {"user_sim_ID": _.flatten().tolist(), "participantId": sampled_participantId, "index": skiprows}
+            user_id_map = {"user_sim_ID": _.flatten().tolist(), "participantId": sampled_participantId}
             json.dump(user_id_map, open(C.user_id_map_path, "w"))
 
         else:
@@ -91,14 +91,12 @@ class RatingSimulation:
             need_data_id_n = len(need_data_id_u)
 
             if need_data_id_n > 0:
-                skiprows = user_id_map['index']
-                sampled_participantId, skiprows = sample_user_data(need_data_id_n, skiprows=skiprows)
+                sampled_participantId, skiprows = sample_user_data(need_data_id_n, drop_ids=user_id_map['participantId'])
                 for i, u in enumerate(need_data_id_u):
                     u.data_id = sampled_participantId[i]
                     u.data_index = skiprows[i]
                     user_id_map['user_sim_ID'].append(u.sim_id)
                     user_id_map['participantId'].append(u.data_id)
-                    user_id_map['index'].append(u.data_index)
                 json.dump(user_id_map, open(C.user_id_map_path, "w"))
 
             I_strategic_R = np.array([[u.sim_id, u.opinion[0], u.opinion[1]] for u in self.strategic_users if u.group == "R"])
